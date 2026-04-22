@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>DuitKu 💸</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600;700&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+<!-- XP Toast -->
+<div id="xp-toast" class="xp-toast hidden">+10 XP 🔥</div>
+
+<!-- Badge Modal -->
+<div id="badge-modal" class="badge-modal hidden">
+  <div class="badge-modal-inner">
+    <div class="badge-glow"></div>
+    <div class="badge-emoji" id="badge-emoji">🏆</div>
+    <h3 id="badge-name">Achievement!</h3>
+    <p id="badge-desc">You did it!</p>
+    <button class="btn-close-badge" onclick="closeBadgeModal()">Yeay! 🎉</button>
+  </div>
+</div>
+
+<!-- Level Up Modal -->
+<div id="levelup-modal" class="levelup-modal hidden">
+  <div class="levelup-inner">
+    <div class="levelup-stars">⭐⭐⭐</div>
+    <h2>LEVEL UP!</h2>
+    <div class="levelup-num" id="levelup-num">2</div>
+    <p>Kamu makin jago manage duit! 💪</p>
+    <button onclick="document.getElementById('levelup-modal').classList.add('hidden')">Lanjut! 🚀</button>
+  </div>
+</div>
+
+<!-- Header -->
+<header class="app-header">
+  <div class="header-left">
+    <div class="app-logo">💸</div>
+    <div>
+      <h1 class="app-title">DuitKu</h1>
+      <p class="app-sub">Manage duit, bukan dibawah bantal 😄</p>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="streak-badge" id="streak-badge">
+      <span class="streak-fire">🔥</span>
+      <span id="streak-count">0</span>
+    </div>
+    <div class="xp-pill" onclick="showTab('profile')">
+      <span class="level-badge" id="header-level">Lv.1</span>
+      <div class="xp-bar-mini">
+        <div class="xp-fill-mini" id="xp-fill-mini"></div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- Balance Hero Card -->
+<div class="hero-section">
+  <div class="balance-card">
+    <div class="card-shine"></div>
+    <p class="balance-label">💰 Saldo Lo Sekarang</p>
+    <h2 class="balance-amount" id="balance-amount">Rp 0</h2>
+    <div class="balance-stats">
+      <div class="stat-item">
+        <span class="stat-icon">📈</span>
+        <div>
+          <p class="stat-label">Pemasukan</p>
+          <p class="stat-val income-val" id="income-total">Rp 0</p>
+        </div>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat-item">
+        <span class="stat-icon">📉</span>
+        <div>
+          <p class="stat-label">Pengeluaran</p>
+          <p class="stat-val expense-val" id="expense-total">Rp 0</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Nav Tabs -->
+<nav class="bottom-nav">
+  <button class="nav-btn active" onclick="showTab('transaksi')" id="nav-transaksi">
+    <span class="nav-icon">📊</span>
+    <span class="nav-label">Transaksi</span>
+  </button>
+  <button class="nav-btn" onclick="showTab('tabungan')" id="nav-tabungan">
+    <span class="nav-icon">🎯</span>
+    <span class="nav-label">Tabungan</span>
+  </button>
+  <button class="nav-btn" onclick="showTab('simulasi')" id="nav-simulasi">
+    <span class="nav-icon">📈</span>
+    <span class="nav-label">Simulasi</span>
+  </button>
+  <button class="nav-btn" onclick="showTab('analisis')" id="nav-analisis">
+    <span class="nav-icon">🔍</span>
+    <span class="nav-label">Analisis</span>
+  </button>
+  <button class="nav-btn" onclick="showTab('profile')" id="nav-profile">
+    <span class="nav-icon">👤</span>
+    <span class="nav-label">Profil</span>
+  </button>
+</nav>
+
+<!-- Main Content -->
+<main class="main-content">
+
+  <!-- ===== TRANSAKSI TAB ===== -->
+  <section class="tab-section active" id="tab-transaksi">
+    
+    <div class="section-header">
+      <h2 class="section-title">Catat Transaksi</h2>
+      <span class="xp-hint">+10 XP tiap transaksi!</span>
+    </div>
+
+    <div class="form-card">
+      <div class="type-toggle">
+        <button class="toggle-btn active" id="type-income" onclick="setType('income')">
+          <span>📈</span> Pemasukan
+        </button>
+        <button class="toggle-btn" id="type-expense" onclick="setType('expense')">
+          <span>📉</span> Pengeluaran
+        </button>
+      </div>
+
+      <div class="category-grid" id="category-grid">
+        <!-- filled by JS -->
+      </div>
+
+      <div class="input-group">
+        <label class="input-label">💵 Jumlah</label>
+        <div class="amount-input-wrap">
+          <span class="currency-prefix">Rp</span>
+          <input type="number" id="amount-input" class="amount-input" placeholder="0" min="0">
+        </div>
+      </div>
+
+      <div class="quick-amounts">
+        <button class="quick-btn" onclick="setQuickAmount(50000)">50rb</button>
+        <button class="quick-btn" onclick="setQuickAmount(100000)">100rb</button>
+        <button class="quick-btn" onclick="setQuickAmount(250000)">250rb</button>
+        <button class="quick-btn" onclick="setQuickAmount(500000)">500rb</button>
+        <button class="quick-btn" onclick="setQuickAmount(1000000)">1jt</button>
+      </div>
+
+      <div class="input-group">
+        <label class="input-label">📝 Keterangan</label>
+        <input type="text" id="desc-input" class="text-input" placeholder="Beli nasi padang, dll...">
+      </div>
+
+      <div class="input-group">
+        <label class="input-label">📅 Tanggal</label>
+        <input type="date" id="date-input" class="text-input">
+      </div>
+
+      <button class="btn-primary" onclick="addTransaction()">
+        <span>✨</span> Tambah Transaksi
+      </button>
+    </div>
+
+    <div class="section-header" style="margin-top: 1.5rem;">
+      <h2 class="section-title">Riwayat</h2>
+      <button class="btn-ghost-danger" onclick="clearAllTransactions()">🗑️ Hapus</button>
+    </div>
+
+    <div id="transaction-list" class="transaction-list">
+      <div class="empty-state">
+        <div class="empty-emoji">💸</div>
+        <p>Belum ada transaksi nih!</p>
+        <small>Catat dulu yuk biar gak lupa 😄</small>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== TABUNGAN TAB ===== -->
+  <section class="tab-section" id="tab-tabungan">
+    
+    <div class="section-header">
+      <h2 class="section-title">Target Tabungan</h2>
+      <span class="xp-hint">+20 XP tiap goal!</span>
+    </div>
+
+    <div class="form-card">
+      <h3 class="form-subtitle">🌟 Buat Target Baru</h3>
+      
+      <div class="emoji-picker">
+        <label class="input-label">Pilih emoji goal-mu</label>
+        <div class="emoji-options">
+          <span class="emoji-opt active" onclick="selectEmoji(this, '🏠')">🏠</span>
+          <span class="emoji-opt" onclick="selectEmoji(this, '🚗')">🚗</span>
+          <span class="emoji-opt" onclick="selectEmoji(this, '✈️')">✈️</span>
+          <span class="emoji-opt" onclick="selectEmoji(this, '💻')">💻</span>
+          <span class="emoji-opt" onclick="selectEmoji(this, '📱')">📱</span>
+          <span class="emoji-opt" onclick="selectEmoji(this, '🎓')">🎓</span>
+          <span class="emoji-opt" onclick="selectEmoji(this, '💍')">💍</span>
+          <span class="emoji-opt" onclick="selectEmoji(this, '🎮')">🎮</span>
+        </div>
+      </div>
+
+      <div class="input-group">
+        <label class="input-label">📌 Nama Target</label>
+        <input type="text" id="goal-name" class="text-input" placeholder="e.g., Beli iPhone 16 Pro 😎">
+      </div>
+
+      <div class="input-group">
+        <label class="input-label">🎯 Target (Rp)</label>
+        <div class="amount-input-wrap">
+          <span class="currency-prefix">Rp</span>
+          <input type="number" id="goal-target" class="amount-input" placeholder="0">
+        </div>
+      </div>
+
+      <div class="input-group">
+        <label class="input-label">💰 Sudah Terkumpul (Rp)</label>
+        <div class="amount-input-wrap">
+          <span class="currency-prefix">Rp</span>
+          <input type="number" id="goal-current" class="amount-input" placeholder="0">
+        </div>
+      </div>
+
+      <div class="input-group">
+        <label class="input-label">⏰ Deadline</label>
+        <input type="date" id="goal-deadline" class="text-input">
+      </div>
+
+      <button class="btn-primary" onclick="addGoal()">
+        <span>🚀</span> Buat Target
+      </button>
+    </div>
+
+    <div id="goals-list" class="goals-list">
+      <div class="empty-state">
+        <div class="empty-emoji">🎯</div>
+        <p>Belum ada target nih!</p>
+        <small>Set goal dulu biar termotivasi! 💪</small>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== SIMULASI TAB ===== -->
+  <section class="tab-section" id="tab-simulasi">
+    <div class="section-header">
+      <h2 class="section-title">Simulasi Tabungan</h2>
+      <span class="xp-hint">Hitung masa depanmu! 🔮</span>
+    </div>
+
+    <div class="form-card">
+      <div class="input-group">
+        <label class="input-label">💵 Modal Awal (Rp)</label>
+        <div class="amount-input-wrap">
+          <span class="currency-prefix">Rp</span>
+          <input type="number" id="sim-principal" class="amount-input" placeholder="0">
+        </div>
+      </div>
+      <div class="input-group">
+        <label class="input-label">📅 Nabung/Bulan (Rp)</label>
+        <div class="amount-input-wrap">
+          <span class="currency-prefix">Rp</span>
+          <input type="number" id="sim-monthly" class="amount-input" placeholder="500000">
+        </div>
+      </div>
+      <div class="input-group">
+        <label class="input-label">📊 Bunga/Tahun (%)</label>
+        <input type="number" id="sim-rate" class="text-input" placeholder="5" value="5" step="0.1">
+      </div>
+      <div class="input-group">
+        <label class="input-label">⏳ Lama Nabung — <span id="sim-duration-label">5 tahun</span></label>
+        <input type="range" id="sim-months" class="range-input" min="6" max="360" value="60" oninput="updateDurationLabel()">
+      </div>
+      <button class="btn-primary" onclick="runSimulation()">
+        <span>🔮</span> Hitung Simulasi
+      </button>
+    </div>
+
+    <div id="sim-result" class="sim-result hidden">
+      <div class="sim-stats-grid">
+        <div class="sim-stat-card" style="--c: #6EE7B7">
+          <span class="sim-stat-icon">💰</span>
+          <p class="sim-stat-label">Total Akhir</p>
+          <p class="sim-stat-val" id="sim-final">Rp 0</p>
+        </div>
+        <div class="sim-stat-card" style="--c: #93C5FD">
+          <span class="sim-stat-icon">🏦</span>
+          <p class="sim-stat-label">Modal Disetor</p>
+          <p class="sim-stat-val" id="sim-deposit">Rp 0</p>
+        </div>
+        <div class="sim-stat-card" style="--c: #FCD34D">
+          <span class="sim-stat-icon">📈</span>
+          <p class="sim-stat-label">Bunga</p>
+          <p class="sim-stat-val" id="sim-interest">Rp 0</p>
+        </div>
+        <div class="sim-stat-card" style="--c: #F9A8D4">
+          <span class="sim-stat-icon">🚀</span>
+          <p class="sim-stat-label">Pertumbuhan</p>
+          <p class="sim-stat-val" id="sim-growth">0%</p>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="sim-chart"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== ANALISIS TAB ===== -->
+  <section class="tab-section" id="tab-analisis">
+    <div class="section-header">
+      <h2 class="section-title">Analisis Pengeluaran</h2>
+      <span class="xp-hint">Kenali kebiasaanmu! 🔍</span>
+    </div>
+    <div id="analisis-content">
+      <div class="empty-state">
+        <div class="empty-emoji">📊</div>
+        <p>Belum cukup data!</p>
+        <small>Tambah transaksi dulu yuk 😊</small>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== PROFILE TAB ===== -->
+  <section class="tab-section" id="tab-profile">
+    <div class="profile-hero">
+      <div class="avatar-circle" id="avatar-display">💸</div>
+      <h2 class="profile-name">DuitKu Master</h2>
+      <div class="level-display">
+        <span id="profile-level-badge">Level 1</span>
+        <span class="level-title" id="level-title">Pemula Hemat</span>
+      </div>
+    </div>
+
+    <div class="xp-section">
+      <div class="xp-header">
+        <span>⚡ XP</span>
+        <span id="xp-display">0 / 100 XP</span>
+      </div>
+      <div class="xp-bar">
+        <div class="xp-fill" id="xp-fill"></div>
+      </div>
+      <p class="xp-hint-text" id="xp-next-hint">Butuh <span id="xp-needed">100</span> XP lagi untuk naik level!</p>
+    </div>
+
+    <div class="streak-card">
+      <div class="streak-info">
+        <span class="big-fire">🔥</span>
+        <div>
+          <h3 id="streak-display">0 Hari Streak</h3>
+          <p>Login tiap hari buat bonus XP!</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-header" style="margin-top: 1.5rem;">
+      <h2 class="section-title">🏆 Badges Kamu</h2>
+    </div>
+
+    <div class="badges-grid" id="badges-grid">
+      <!-- filled by JS -->
+    </div>
+  </section>
+
+</main>
+
+<!-- Deposit Modal -->
+<div id="deposit-modal" class="badge-modal hidden">
+  <div class="badge-modal-inner">
+    <h3>💰 Tambah Setoran</h3>
+    <p id="deposit-goal-name" style="color: var(--text-muted); margin-bottom: 1rem;"></p>
+    <div class="amount-input-wrap">
+      <span class="currency-prefix">Rp</span>
+      <input type="number" id="deposit-amount" class="amount-input" placeholder="0">
+    </div>
+    <div style="display: flex; gap: 0.75rem; margin-top: 1rem;">
+      <button class="btn-primary" style="flex:1" onclick="submitDeposit()">Setor! 💪</button>
+      <button class="btn-ghost-danger" style="flex:1" onclick="closeDepositModal()">Batal</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="/static/js/app.js"></script>
+</body>
+</html>
