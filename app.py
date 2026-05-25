@@ -5,9 +5,12 @@ from datetime import datetime, date
 import uuid
 
 app = Flask(__name__)
-app.secret_key = 'duitku_secret_key_2024'
+app.secret_key = os.getenv('SECRET_KEY', 'duitku_secret_key_2024') 
 
-DATA_FILE = 'data.json'
+if os.getenv('VERCEL'):
+    DATA_FILE = '/tmp/duitku_data.json'
+else:
+    DATA_FILE = 'data.json'
 
 def load_data():
     if os.path.exists(DATA_FILE):
