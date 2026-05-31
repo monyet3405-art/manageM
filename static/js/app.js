@@ -61,15 +61,41 @@ document.addEventListener('DOMContentLoaded', () => {
   loadData();
 });
 
+function saveToLocalStorage() {
+  localStorage.setItem('duitku_data', JSON.stringify(state));
+}
+
 async function loadData() {
-  const res = await fetch('/api/data');
-  const data = await res.json();
-  prevLevel = data.level;
-  updateState(data);
+  const cached = localStorage.getItem('duitku_data');
+  if (cached) {
+    try {
+      state = JSON.parse(cached);
+      prevLevel = state.level || 1;
+      renderAll();
+    } catch (e) {
+      console.error("Gagal memuat cached state dari localStorage", e);
+    }
+  }
+
+  try {
+    const res = await fetch('/api/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ state })
+    });
+    const data = await res.json();
+    if (data.success) {
+      prevLevel = data.state.level;
+      updateState(data.state);
+    }
+  } catch (e) {
+    console.error("Gagal sinkronisasi data dengan server", e);
+  }
 }
 
 function updateState(data) {
   state = { ...state, ...data };
+  saveToLocalStorage();
   renderAll();
 }
 
@@ -180,7 +206,10 @@ async function addTransaction() {
   const res = await fetch('/api/transaction', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ type: selectedType, category: selectedCategory, amount, description: desc, date })
+    body: JSON.stringify({
+      state,
+      transaction: { type: selectedType, category: selectedCategory, amount, description: desc, date }
+    })
   });
 
   const data = await res.json();
@@ -194,17 +223,7 @@ async function addTransaction() {
   showXPToast('+10 XP 🔥');
 
   // Update state
-  state.transactions = [data.transaction, ...state.transactions];
-  state.xp = data.xp;
-  state.level = data.level;
-  state.balance = data.balance;
-  state.income = data.income;
-  state.expense = data.expense;
-
-  updateBalanceDisplay();
-  updateXPDisplay();
-  renderTransactions();
-  renderAnalysis();
+  updateState(data.state);
 
   // Check level up
   if (data.level > prevLevel) {
@@ -219,27 +238,28 @@ async function addTransaction() {
 }
 
 async function deleteTransaction(id) {
-  const res = await fetch(`/api/transaction/${id}`, { method: 'DELETE' });
+  const res = await fetch(`/api/transaction/${id}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ state })
+  });
   const data = await res.json();
-  state.transactions = state.transactions.filter(t => t.id !== id);
-  state.balance = data.balance;
-  state.income = data.income;
-  state.expense = data.expense;
-  updateBalanceDisplay();
-  renderTransactions();
-  renderAnalysis();
+  if (data.success) {
+    updateState(data.state);
+  }
 }
 
 async function clearAllTransactions() {
   if (!confirm('Yakin mau hapus semua transaksi? 🗑️')) return;
-  await fetch('/api/transactions', { method: 'DELETE' });
-  state.transactions = [];
-  state.balance = 0;
-  state.income = 0;
-  state.expense = 0;
-  updateBalanceDisplay();
-  renderTransactions();
-  renderAnalysis();
+  const res = await fetch('/api/transactions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ state })
+  });
+  const data = await res.json();
+  if (data.success) {
+    updateState(data.state);
+  }
 }
 
 // ===== RENDER TRANSACTIONS =====
@@ -294,7 +314,10 @@ async function addGoal() {
   const res = await fetch('/api/savings', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, target, current, deadline, emoji: selectedEmoji })
+    body: JSON.stringify({
+      state,
+      goal: { name, target, current, deadline, emoji: selectedEmoji }
+    })
   });
 
   const data = await res.json();
@@ -305,11 +328,8 @@ async function addGoal() {
   document.getElementById('goal-current').value = '';
   document.getElementById('goal-deadline').value = '';
 
-  state.savings_goals.push(data.goal);
-  state.xp = data.xp;
-  updateXPDisplay();
-  renderGoals();
   showXPToast('+20 XP 🎯');
+  updateState(data.state);
 
   if (data.new_badges && data.new_badges.length > 0) {
     setTimeout(() => showBadge(data.new_badges[0]), 600);
@@ -317,9 +337,15 @@ async function addGoal() {
 }
 
 async function deleteGoal(id) {
-  await fetch(`/api/savings/${id}`, { method: 'DELETE' });
-  state.savings_goals = state.savings_goals.filter(g => g.id !== id);
-  renderGoals();
+  const res = await fetch(`/api/savings/${id}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ state })
+  });
+  const data = await res.json();
+  if (data.success) {
+    updateState(data.state);
+  }
 }
 
 function openDepositModal(id) {
@@ -342,18 +368,15 @@ async function submitDeposit() {
   const res = await fetch(`/api/savings/${depositGoalId}/deposit`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ amount })
+    body: JSON.stringify({ state, amount })
   });
 
   const data = await res.json();
   if (!data.success) return;
 
-  state.savings_goals = data.goals;
-  state.xp = data.xp;
   closeDepositModal();
-  updateXPDisplay();
-  renderGoals();
   showXPToast('+15 XP 💰');
+  updateState(data.state);
 
   if (data.new_badges && data.new_badges.length > 0) {
     setTimeout(() => showBadge(data.new_badges[0]), 600);

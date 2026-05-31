@@ -3,41 +3,6 @@ import json
 import os
 from datetime import datetime, date
 import uuid
-import requests
-
-# ===== SUPABASE CONFIG =====
-SUPABASE_URL = os.environ.get("SUPABASE_URL", "YOUR_SUPABASE_URL")
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "YOUR_SUPABASE_KEY")
-USER_ID = "default"
-
-HEADERS = {
-    "apikey": SUPABASE_KEY,
-    "Authorization": f"Bearer {SUPABASE_KEY}",
-    "Content-Type": "application/json",
-    "Prefer": "return=representation"
-}
-
-# ===== DATABASE FUNCTIONS =====
-def load_data():
-    """Load data dari Supabase"""
-    try:
-        url = f"{SUPABASE_URL}/rest/v1/duitku_data?user_id=eq.{USER_ID}"
-        res = requests.get(url, headers=HEADERS)
-        rows = res.json()
-
-        if rows and len(rows) > 0:
-            row = rows[0]
-            return {
-                'transactions': row.get('transactions') or [],
-                'savings_goals': row.get('savings_goals') or [],
-                'xp': row.get('xp') or 0,
-                'level': row.get('level') or 1,
-                'badges': row.get('badges') or [],
-                'streak': row.get('streak') or 0,
-                'last_login': row.get('last_login')
-            }
-    except Exception as e:
-        print(f"Load error: {e}")
 
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', '  ')
@@ -179,18 +144,57 @@ def get_data():
         'next_level_xp': [0, 100, 250, 500, 1000, 2000, 3500, 5000, 7500, 10000][min(data.get('level', 1), 9)]
     })
 
+@app.route('/api/sync', methods=['POST'])
+def sync_data():
+    body = request.json or {}
+    data = body.get('state') if body and 'state' in body else load_data()
+    
+    # Update streak
+    today = date.today().isoformat()
+    last = data.get('last_login')
+    if last != today:
+        if last:
+            from datetime import timedelta
+            last_date = date.fromisoformat(last)
+            diff = (date.today() - last_date).days
+            if diff == 1:
+                data['streak'] = data.get('streak', 0) + 1
+                if data['streak'] % 7 == 0:
+                    data['xp'] = data.get('xp', 0) + 50
+            elif diff > 1:
+                data['streak'] = 1
+        else:
+            data['streak'] = 1
+        data['last_login'] = today
+        save_data(data)
+    
+    transactions = data.get('transactions', [])
+    income = sum(t['amount'] for t in transactions if t['type'] == 'income')
+    expense = sum(t['amount'] for t in transactions if t['type'] == 'expense')
+    balance = income - expense
+    
+    return jsonify({
+        'success': True,
+        'state': data,
+        'balance': balance,
+        'income': income,
+        'expense': expense,
+        'next_level_xp': [0, 100, 250, 500, 1000, 2000, 3500, 5000, 7500, 10000][min(data.get('level', 1), 9)]
+    })
+
 @app.route('/api/transaction', methods=['POST'])
 def add_transaction():
-    data = load_data()
-    body = request.json
+    body = request.json or {}
+    data = body.get('state') if body and 'state' in body else load_data()
+    txn_data = body.get('transaction') if body and 'transaction' in body else body
     
     transaction = {
         'id': str(uuid.uuid4()),
-        'type': body['type'],
-        'category': body['category'],
-        'amount': float(body['amount']),
-        'description': body.get('description', ''),
-        'date': body.get('date', datetime.now().isoformat())
+        'type': txn_data['type'],
+        'category': txn_data['category'],
+        'amount': float(txn_data['amount']),
+        'description': txn_data.get('description', ''),
+        'date': txn_data.get('date', datetime.now().isoformat())
     }
     
     data['transactions'].insert(0, transaction)
@@ -206,6 +210,7 @@ def add_transaction():
     return jsonify({
         'success': True,
         'transaction': transaction,
+        'state': data,
         'xp': data['xp'],
         'level': data['level'],
         'new_badges': new_badges,
@@ -214,9 +219,10 @@ def add_transaction():
         'expense': expense
     })
 
-@app.route('/api/transaction/<tid>', methods=['DELETE'])
+@app.route('/api/transaction/<tid>', methods=['DELETE', 'POST'])
 def delete_transaction(tid):
-    data = load_data()
+    body = request.json or {}
+    data = body.get('state') if body and 'state' in body else load_data()
     data['transactions'] = [t for t in data['transactions'] if t['id'] != tid]
     save_data(data)
     
@@ -224,27 +230,35 @@ def delete_transaction(tid):
     income = sum(t['amount'] for t in transactions if t['type'] == 'income')
     expense = sum(t['amount'] for t in transactions if t['type'] == 'expense')
     
-    return jsonify({'success': True, 'balance': income - expense, 'income': income, 'expense': expense})
+    return jsonify({
+        'success': True,
+        'state': data,
+        'balance': income - expense,
+        'income': income,
+        'expense': expense
+    })
 
-@app.route('/api/transactions', methods=['DELETE'])
+@app.route('/api/transactions', methods=['DELETE', 'POST'])
 def delete_all_transactions():
-    data = load_data()
+    body = request.json or {}
+    data = body.get('state') if body and 'state' in body else load_data()
     data['transactions'] = []
     save_data(data)
-    return jsonify({'success': True})
+    return jsonify({'success': True, 'state': data})
 
 @app.route('/api/savings', methods=['POST'])
 def add_savings_goal():
-    data = load_data()
-    body = request.json
+    body = request.json or {}
+    data = body.get('state') if body and 'state' in body else load_data()
+    goal_data = body.get('goal') if body and 'goal' in body else body
     
     goal = {
         'id': str(uuid.uuid4()),
-        'name': body['name'],
-        'target': float(body['target']),
-        'current': float(body.get('current', 0)),
-        'deadline': body.get('deadline', ''),
-        'emoji': body.get('emoji', '🎯'),
+        'name': goal_data['name'],
+        'target': float(goal_data['target']),
+        'current': float(goal_data.get('current', 0)),
+        'deadline': goal_data.get('deadline', ''),
+        'emoji': goal_data.get('emoji', '🎯'),
         'created': datetime.now().isoformat()
     }
     
@@ -254,13 +268,19 @@ def add_savings_goal():
     new_badges = check_badges(data)
     save_data(data)
     
-    return jsonify({'success': True, 'goal': goal, 'xp': data['xp'], 'new_badges': new_badges})
+    return jsonify({
+        'success': True,
+        'goal': goal,
+        'state': data,
+        'xp': data['xp'],
+        'new_badges': new_badges
+    })
 
 @app.route('/api/savings/<gid>/deposit', methods=['POST'])
 def deposit_savings(gid):
-    data = load_data()
-    body = request.json
-    amount = float(body['amount'])
+    body = request.json or {}
+    data = body.get('state') if body and 'state' in body else load_data()
+    amount = float(body.get('amount', 0))
     
     for goal in data['savings_goals']:
         if goal['id'] == gid:
@@ -271,14 +291,22 @@ def deposit_savings(gid):
     new_badges = check_badges(data)
     save_data(data)
     
-    return jsonify({'success': True, 'xp': data['xp'], 'new_badges': new_badges, 'goals': data['savings_goals']})
+    return jsonify({
+        'success': True,
+        'state': data,
+        'xp': data['xp'],
+        'new_badges': new_badges,
+        'goals': data['savings_goals']
+    })
 
-@app.route('/api/savings/<gid>', methods=['DELETE'])
+@app.route('/api/savings/<gid>', methods=['DELETE', 'POST'])
 def delete_savings_goal(gid):
-    data = load_data()
+    body = request.json or {}
+    data = body.get('state') if body and 'state' in body else load_data()
     data['savings_goals'] = [g for g in data['savings_goals'] if g['id'] != gid]
     save_data(data)
-    return jsonify({'success': True})
+    return jsonify({'success': True, 'state': data})
+
 
 @app.route('/api/simulate', methods=['POST'])
 def simulate():
