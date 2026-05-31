@@ -3,41 +3,6 @@ import json
 import os
 from datetime import datetime, date
 import uuid
-import requests
-
-# ===== SUPABASE CONFIG =====
-SUPABASE_URL = os.environ.get("SUPABASE_URL", "YOUR_SUPABASE_URL")
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "YOUR_SUPABASE_KEY")
-USER_ID = "default"
-
-HEADERS = {
-    "apikey": SUPABASE_KEY,
-    "Authorization": f"Bearer {SUPABASE_KEY}",
-    "Content-Type": "application/json",
-    "Prefer": "return=representation"
-}
-
-# ===== DATABASE FUNCTIONS =====
-def load_data():
-    """Load data dari Supabase"""
-    try:
-        url = f"{SUPABASE_URL}/rest/v1/duitku_data?user_id=eq.{USER_ID}"
-        res = requests.get(url, headers=HEADERS)
-        rows = res.json()
-
-        if rows and len(rows) > 0:
-            row = rows[0]
-            return {
-                'transactions': row.get('transactions') or [],
-                'savings_goals': row.get('savings_goals') or [],
-                'xp': row.get('xp') or 0,
-                'level': row.get('level') or 1,
-                'badges': row.get('badges') or [],
-                'streak': row.get('streak') or 0,
-                'last_login': row.get('last_login')
-            }
-    except Exception as e:
-        print(f"Load error: {e}")
 
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', '  ')
